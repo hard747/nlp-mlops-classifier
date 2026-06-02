@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # 1. El Motor de Datos (Persistencia de Auditoría)
+  postgres_db:
+    image: postgres:16-alpine
+    container_name: nlp_postgres_container
+    environment:
+      POSTGRES_USER: harre_admin
+      POSTGRES_PASSWORD: super_secure_password_2026
+      POSTGRES_DB: nlp_audit_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - nlp_internal_network
+    restart: always
+
+  # 2. El Core del Negocio (Tu API de Inteligencia Artificial)
+  api_service:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: nlp_fastapi_container
+    environment:
+      - DATABASE_URL=postgresql://harre_admin:super_secure_password_2026@postgres_db:5432/nlp_audit_db
+      - MODEL_PATH=/app/src/infrastructure/ml_model/weights
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres_db
+    networks:
+      - nlp_internal_network
+
+  # 3. El Escudo Perimetral (Proxy Inverso y Seguridad)
+  nginx_proxy:
+    image: nginx:alpine
+    container_name: nlp_nginx_container
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api_service
+    networks:
+      - nlp_internal_network
+
+volumes:
+  postgres_data:
+
+networks:
+  nlp_internal_network:
+    driver: bridge
