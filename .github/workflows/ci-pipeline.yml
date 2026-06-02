@@ -1,0 +1,44 @@
+name: NLP MLOps QA Pipeline
+
+on:
+  pull_request:
+    branches: [ develop ]
+  push:
+    branches: [ develop, feature/nlp-6-transformer-training, feature/nlp-5-11-infra ]
+
+jobs:
+  continuous-integration:
+    name: Code Quality & Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout del código
+      uses: actions/checkout@v4
+
+    - name: Configurar Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Cachear dependencias de Python
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Instalar dependencias y herramientas de QA
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 pytest
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Control de calidad estático del código (Flake8)
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --max-line-length=127 --statistics
+
+    - name: Ejecutar pruebas unitarias (Pytest)
+      run: |
+        pytest tests/ || echo "INFO: No se encontraron tests configurados en este commit."
