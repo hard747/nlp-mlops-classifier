@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Ignorar datos locales del modelo
+train/dataset/
+models/
