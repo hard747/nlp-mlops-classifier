@@ -10,6 +10,7 @@ from src.infrastructure.database.audit_repository import SqlAlchemyAuditLogRepos
 from src.infrastructure.database.batch_writer import FanInBatchWriter
 from src.infrastructure.database.session import async_session_factory
 from src.infrastructure.ml_model.classifier_adapter import TransformerClassifierAdapter
+from src.infrastructure.observability.drift import DriftMonitor
 from src.infrastructure.resilience.circuit_breaker import CircuitBreaker
 from src.infrastructure.api.routers import health, predict
 
@@ -38,9 +39,20 @@ async def lifespan(app: FastAPI):
     app.state.batch_writer = batch_writer
     batch_writer.start()
 
+    drift_monitor = DriftMonitor(
+        session_factory=async_session_factory,
+        baseline_confidence=settings.drift_baseline_confidence,
+        window_minutes=settings.drift_window_minutes,
+        check_interval_seconds=settings.drift_check_interval_seconds,
+        alert_threshold=settings.drift_alert_threshold,
+    )
+    app.state.drift_monitor = drift_monitor
+    drift_monitor.start()
+
     logger.info("startup complete: model loaded, batch writer running")
     yield
 
+    await drift_monitor.stop()
     await batch_writer.stop()
     logger.info("shutdown complete: audit queue drained")
 

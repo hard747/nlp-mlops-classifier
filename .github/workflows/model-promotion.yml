@@ -1,0 +1,33 @@
+name: Model Evaluation & Promotion
+
+# Latent by design: compares the latest MLflow training run against the model
+# aliased "production" and promotes it if it isn't worse (see train/promote_model.py).
+# The local docker-compose MLflow instance is not reachable from a GitHub-hosted
+# runner, so this job is a no-op until MLFLOW_TRACKING_URI is added as a repo
+# secret pointing at a real, reachable MLflow server.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  evaluate-and-promote:
+    name: Compare latest run against production, promote if not worse
+    runs-on: ubuntu-latest
+    if: ${{ secrets.MLFLOW_TRACKING_URI != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install MLflow client
+        run: pip install mlflow==2.17.2
+
+      - name: Evaluate and promote
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: python train/promote_model.py

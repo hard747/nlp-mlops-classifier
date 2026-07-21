@@ -25,5 +25,12 @@ class Settings(BaseSettings):
     breaker_failure_threshold: int = 5
     breaker_cooldown_seconds: float = 30.0
 
+    drift_check_interval_seconds: int = 300
+    drift_window_minutes: int = 60
+    # Mean prediction confidence on the Phase 2 held-out validation set; override
+    # via env once a real training run reports its own eval confidence.
+    drift_baseline_confidence: float = 0.95
+    drift_alert_threshold: float = 0.05
+
 
 settings = Settings()

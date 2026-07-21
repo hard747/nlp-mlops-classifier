@@ -113,6 +113,44 @@
           "rawSql": "SELECT date_trunc('minute', created_at) AS time, count(*) AS predictions FROM audit_logs GROUP BY 1 ORDER BY 1"
         }
       ]
+    },
+    {
+      "id": 8,
+      "title": "Rolling avg confidence (1h)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+          "expr": "prediction_avg_confidence_1h",
+          "legendFormat": "avg confidence"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Drift score (|avg confidence - baseline|)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+          "expr": "prediction_drift_score"
+        }
+      ]
     }
   ]
 }
