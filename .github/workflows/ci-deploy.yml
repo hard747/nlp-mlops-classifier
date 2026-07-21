@@ -1,0 +1,94 @@
+name: Build, Smoke-Test & Publish
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  build-smoke-test-publish:
+    name: Build image, smoke-test, push to GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build image
+      run: docker build -t local/nlp-mlops-classifier:ci .
+
+    - name: Boot the container
+      run: |
+        docker run -d --name nlp_api -p 8000:8000 local/nlp-mlops-classifier:ci
+
+    - name: Poll /health until ready
+      run: |
+        for i in $(seq 1 30); do
+          if curl -sf http://localhost:8000/health; then
+            echo "API is healthy"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "API never became healthy" >&2
+        docker logs nlp_api
+        exit 1
+
+    - name: Smoke-test /predict
+      # No Postgres is reachable in this ephemeral job: this also proves the
+      # circuit breaker degrades gracefully and inference keeps responding.
+      run: |
+        response=$(curl -sf -X POST http://localhost:8000/predict \
+          -H "Content-Type: application/json" \
+          -d '{"text": "I want to cancel my order"}')
+        echo "$response"
+        echo "$response" | python3 -c "
+        import json, sys
+        body = json.load(sys.stdin)
+        assert 'intent' in body and body['intent'], 'missing intent'
+        assert 'confidence' in body, 'missing confidence'
+        assert 'request_id' in body, 'missing request_id'
+        "
+
+    - name: Tear down
+      if: always()
+      run: docker rm -f nlp_api || true
+
+    - name: Validate render.yaml
+      run: |
+        python3 -c "
+        import yaml
+        with open('render.yaml') as f:
+            blueprint = yaml.safe_load(f)
+        services = blueprint.get('services', [])
+        assert services, 'render.yaml has no services defined'
+        service = services[0]
+        for key in ('type', 'name', 'runtime', 'dockerfilePath', 'healthCheckPath'):
+            assert key in service, f'render.yaml service missing required key: {key}'
+        print('render.yaml is valid')
+        "
+
+    - name: Log in to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Tag and push image to GHCR
+      run: |
+        docker tag local/nlp-mlops-classifier:ci ${{ env.IMAGE_NAME }}:${{ github.sha }}
+        docker tag local/nlp-mlops-classifier:ci ${{ env.IMAGE_NAME }}:latest
+        docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
+        docker push ${{ env.IMAGE_NAME }}:latest
+
+    - name: Trigger Render deploy
+      # Inert until RENDER_DEPLOY_HOOK_URL is added as a repo secret - activating
+      # a live deploy later needs no workflow changes, just adding the secret.
+      if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
+      run: curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

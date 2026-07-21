@@ -220,3 +220,6 @@ __marimo__/
 # Ignorar datos locales del modelo
 train/dataset/
 models/
+src/infrastructure/ml_model/weights/*
+!src/infrastructure/ml_model/weights/.gitkeep
+results/

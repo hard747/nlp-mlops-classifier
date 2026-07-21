@@ -1,3 +1,12 @@
+"""Phase 1 - local GPU benchmark artifact.
+
+Historical training run kept as-is (Spanish comments, original structure):
+fine-tunes DistilBERT on ag_news (4-class news topic classification) for a
+single epoch over 120,000 rows. Ran for real on a GTX 1650 (4GB VRAM), ~7h,
+94.35% final accuracy. This validated the local CUDA training pipeline before
+Phase 2 (train_intent_classifier.py) targets the actual product dataset:
+customer support intent classification.
+"""
 import os
 import torch
 import numpy as np

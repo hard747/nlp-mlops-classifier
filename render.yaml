@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: nlp-mlops-classifier
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nlp-mlops-audit-db
+          property: connectionString
+      - key: MODEL_PATH
+        value: /app/src/infrastructure/ml_model/weights
+      - key: DB_TIMEOUT_MS
+        value: "500"
+
+databases:
+  - name: nlp-mlops-audit-db
+    plan: free
+    databaseName: nlp_audit_db
+    user: nlp_audit_user
