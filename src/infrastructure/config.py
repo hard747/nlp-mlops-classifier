@@ -1,3 +1,5 @@
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -14,8 +16,21 @@ class Settings(BaseSettings):
         # Render's managed Postgres (and most providers) hand back a bare
         # postgresql:// DSN; the app requires the asyncpg driver explicitly.
         if value.startswith("postgresql://"):
-            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
-        return value
+            value = value.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+        # Connection strings copied from managed providers (Neon, Supabase, ...)
+        # use libpq-style query params. asyncpg.connect() takes the same
+        # 'require'/'verify-full'/etc. values under the name `ssl`, not
+        # `sslmode`, and doesn't recognize `channel_binding` at all - passed
+        # through unchanged they surface as "connect() got an unexpected
+        # keyword argument" at the first real connection attempt.
+        parts = urlsplit(value)
+        query = dict(parse_qsl(parts.query))
+        if "sslmode" in query:
+            query["ssl"] = query.pop("sslmode")
+        query.pop("channel_binding", None)
+        return urlunsplit(parts._replace(query=urlencode(query)))
+
     db_timeout_ms: int = 500
 
     batch_max_size: int = 50
