@@ -1,4 +1,4 @@
-name: Minimal Test 3
+name: Minimal Test 4
 
 on:
   push:
@@ -14,25 +14,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Poll something
-      run: |
-        for i in $(seq 1 3); do
-          echo "try $i"
-        done
+    - name: Build image
+      run: docker build -t local/nlp-mlops-classifier:ci .
 
-    - name: Python heredoc test
+    - name: Boot the container
       run: |
-        response='{"a":1}'
-        echo "$response"
-        echo "$response" | python3 -c "
-        import json, sys
-        body = json.load(sys.stdin)
-        assert 'a' in body
-        "
+        docker run -d --name nlp_api -p 8000:8000 \
+          -e MODEL_PATH=hard717/intent-classifier-customer-support \
+          local/nlp-mlops-classifier:ci
 
-    - name: Log in to GHCR
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Tear down
+      if: always()
+      run: docker rm -f nlp_api || true
+
+    - name: Trigger Render deploy
+      if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
+      run: curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
