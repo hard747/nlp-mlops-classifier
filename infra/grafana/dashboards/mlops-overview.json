@@ -1,0 +1,156 @@
+{
+  "title": "NLP MLOps Classifier - Overview",
+  "uid": "nlp-mlops-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+          "expr": "sum(rate(http_requests_total{handler=\"/predict\"}[1m]))",
+          "legendFormat": "/predict"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "p95 latency - /predict (s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{handler=\"/predict\"}[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Audit DB circuit breaker state",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "CLOSED", "color": "green" } } },
+            { "type": "value", "options": { "1": { "text": "OPEN", "color": "red" } } },
+            { "type": "value", "options": { "2": { "text": "HALF_OPEN", "color": "yellow" } } }
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+          "expr": "circuit_breaker_state"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Total predictions logged",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 },
+      "datasource": { "type": "postgres", "uid": "postgres-audit-ds" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "postgres-audit-ds" },
+          "rawSql": "SELECT count(*) AS \"Total\" FROM audit_logs",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Predicted intent distribution",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "postgres", "uid": "postgres-audit-ds" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "postgres-audit-ds" },
+          "rawSql": "SELECT predicted_intent, count(*) AS predictions FROM audit_logs GROUP BY predicted_intent ORDER BY predictions DESC LIMIT 20",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Average prediction confidence over time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "postgres", "uid": "postgres-audit-ds" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "postgres-audit-ds" },
+          "format": "time_series",
+          "rawSql": "SELECT date_trunc('minute', created_at) AS time, avg(confidence) AS avg_confidence FROM audit_logs GROUP BY 1 ORDER BY 1"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Prediction volume over time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "postgres", "uid": "postgres-audit-ds" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "postgres-audit-ds" },
+          "format": "time_series",
+          "rawSql": "SELECT date_trunc('minute', created_at) AS time, count(*) AS predictions FROM audit_logs GROUP BY 1 ORDER BY 1"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Rolling avg confidence (1h)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+          "expr": "prediction_avg_confidence_1h",
+          "legendFormat": "avg confidence"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Drift score (|avg confidence - baseline|)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+          "expr": "prediction_drift_score"
+        }
+      ]
+    }
+  ]
+}

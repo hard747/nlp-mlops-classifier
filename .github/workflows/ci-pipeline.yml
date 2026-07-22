@@ -1,44 +1,68 @@
 name: NLP MLOps QA Pipeline
 
+# The robot watches every push and pull request targeting develop
 on:
   pull_request:
     branches: [ develop ]
   push:
-    branches: [ develop, feature/nlp-6-transformer-training, feature/nlp-5-11-infra ]
+    branches: [ develop, feature/nlp-9-ci-pipeline ]
 
 jobs:
   continuous-integration:
     name: Code Quality & Unit Tests
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: nlp_audit_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://ci_user:ci_password@localhost:5432/nlp_audit_db
+
     steps:
-    - name: Checkout del código
+    - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Configurar Python 3.10
+    - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.11'
 
-    - name: Cachear dependencias de Python
+    - name: Cache pip downloads
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-dev.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
-    - name: Instalar dependencias y herramientas de QA
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -r requirements-dev.txt
 
-    - name: Control de calidad estático del código (Flake8)
+    - name: Static analysis (flake8)
       run: |
+        # Fails immediately on syntax errors and undefined names.
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         flake8 . --count --max-line-length=127 --statistics
 
-    - name: Ejecutar pruebas unitarias (Pytest)
-      run: |
-        pytest tests/ || echo "INFO: No se encontraron tests configurados en este commit."
+    - name: Run Alembic migrations against the CI database
+      run: alembic upgrade head
+
+    - name: Run unit tests
+      run: pytest tests/ -m "not integration"
+
+    - name: Run integration tests (real Postgres round trip)
+      run: pytest tests/ -m integration

@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: nlp-mlops-classifier
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # No managed Render database: Render's free tier allows only one active
+      # free Postgres per account. Set this manually in the Render dashboard
+      # (Environment tab) to an external free-tier DB's connection string, e.g.
+      # Neon - see README "Deploy" section.
+      - key: DATABASE_URL
+        sync: false
+      # A Hugging Face Hub repo id, not a local path: the git repo never ships
+      # model weights (267MB, gitignored), so the API downloads them from the
+      # Hub at startup instead of expecting a baked-in local checkpoint. Local
+      # docker-compose keeps using the promoted local path (see docker-compose.yml).
+      - key: MODEL_PATH
+        value: hard717/intent-classifier-customer-support
+      - key: DB_TIMEOUT_MS
+        value: "500"
