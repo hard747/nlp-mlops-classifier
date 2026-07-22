@@ -1,11 +1,17 @@
-name: Minimal Test
+name: Minimal Test 2
 
 on:
   push:
     branches: [ main ]
 
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
-    - run: echo "hello"
+    - run: echo "hello ${{ env.IMAGE_NAME }}"
