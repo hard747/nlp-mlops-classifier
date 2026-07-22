@@ -24,7 +24,9 @@ jobs:
 
     - name: Boot the container
       run: |
-        docker run -d --name nlp_api -p 8000:8000 local/nlp-mlops-classifier:ci
+        docker run -d --name nlp_api -p 8000:8000 \
+          -e MODEL_PATH=hard717/intent-classifier-customer-support \
+          local/nlp-mlops-classifier:ci
 
     - name: Poll /health until ready
       run: |
