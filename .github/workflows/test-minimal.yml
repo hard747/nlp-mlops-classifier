@@ -1,4 +1,4 @@
-name: Minimal Test 4
+name: Minimal Test 5
 
 on:
   push:
@@ -26,7 +26,3 @@ jobs:
     - name: Tear down
       if: always()
       run: docker rm -f nlp_api || true
-
-    - name: Trigger Render deploy
-      if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
-      run: curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
