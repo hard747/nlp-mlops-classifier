@@ -2,6 +2,12 @@
 
 An enterprise-grade, production-ready Modular Monolith designed for high-throughput customer support intent classification. This project leverages fine-tuned NLP Transformers, robust software design patterns, and a complete automated DevOps pipeline.
 
+**🔗 Live demo:** [nlp-mlops-classifier.onrender.com](https://nlp-mlops-classifier.onrender.com/docs) — Render free tier, so the first request after idling spins the instance back up (~50s).
+```bash
+curl -X POST https://nlp-mlops-classifier.onrender.com/predict \
+  -H "Content-Type: application/json" -d '{"text": "I want a refund for my order"}'
+```
+
 ## 📸 Screenshots
 
 | FastAPI (Swagger) | Grafana — infra + drift metrics |
