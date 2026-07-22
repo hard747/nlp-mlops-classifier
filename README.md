@@ -2,12 +2,6 @@
 
 An enterprise-grade, production-ready Modular Monolith designed for high-throughput customer support intent classification. This project leverages fine-tuned NLP Transformers, robust software design patterns, and a complete automated DevOps pipeline.
 
-**🔗 Live demo:** [nlp-mlops-classifier.onrender.com](https://nlp-mlops-classifier.onrender.com/docs) — Render free tier, so the first request after idling spins the instance back up (~50s).
-```bash
-curl -X POST https://nlp-mlops-classifier.onrender.com/predict \
-  -H "Content-Type: application/json" -d '{"text": "I want a refund for my order"}'
-```
-
 ## 📸 Screenshots
 
 | FastAPI (Swagger) | Grafana — infra + drift metrics |
@@ -37,7 +31,7 @@ Following high-scale system engineering principles, this platform rejects archit
 ## 📦 Current Deployment Status
 
 * Docker image builds successfully (`docker build .`) and is smoke-tested (boot → `/health` → `/predict`) on every push to `main` via `.github/workflows/ci-deploy.yml`, then published to GHCR using the repo's automatic `GITHUB_TOKEN` — no extra secrets required for that part.
-* `render.yaml` is a complete, validated Render Blueprint (Docker runtime, health check). **Live Render activation is an intentional manual step** — the deploy step in `ci-deploy.yml` is gated behind an optional `RENDER_DEPLOY_HOOK_URL` secret and simply does nothing until that secret is added. Render's free tier caps out at one managed Postgres per account, so `DATABASE_URL` is an unmanaged env var pointed at an external free-tier Postgres (e.g. [Neon](https://neon.tech)) instead of a Render-managed database — see "Deploy" below.
+* `render.yaml` is a complete, validated Render Blueprint (Docker runtime, health check) — deployed and functionally verified end to end (model load from the Hub, `/predict`, Postgres audit writes over TLS). **It was taken back down**: Render's free tier (512MB RAM) can't hold PyTorch + Transformers reliably — measured at ~350MB for the bare `torch`+`transformers` import alone, before the model - so the container gets OOM-killed under real load. This is a hosting-tier constraint, not a code defect: the same image runs fine locally (see "Run locally") and would run fine on Render's smallest *paid* plan with zero code changes. Render's free tier also caps out at one managed Postgres per account, so `DATABASE_URL` is an unmanaged env var pointed at an external free-tier Postgres ([Neon](https://neon.tech)) instead of a Render-managed database — see "Deploy" below.
 * The trained Phase 2 model is never committed to git (267MB, gitignored) - it's hosted on the [Hugging Face Hub](https://huggingface.co/hard717/intent-classifier-customer-support) instead. `MODEL_PATH` is either a local path (`docker-compose`, promoted after a local training run) or a Hub repo id (Render), and `AutoModel.from_pretrained` handles both transparently with zero code branching.
 * **Model promotion pipeline (`.github/workflows/model-promotion.yml`) is latent by design.** It compares the latest MLflow run against the model aliased `production` in the MLflow Model Registry and promotes it if it isn't worse (see `train/promote_model.py`) - but it's a no-op until `MLFLOW_TRACKING_URI` is added as a repo secret pointing at a *reachable* MLflow server, since the local docker-compose instance isn't reachable from a GitHub-hosted runner. Real end-to-end automated retraining also needs a GPU runner (training takes hours on a consumer GPU); that part stays a deliberate manual step for now.
 

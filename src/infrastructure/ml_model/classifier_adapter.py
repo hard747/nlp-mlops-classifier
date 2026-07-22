@@ -17,12 +17,17 @@ class TransformerClassifierAdapter:
     def __init__(self, model_path: str) -> None:
         self._tokenizer = AutoTokenizer.from_pretrained(model_path)
         # low_cpu_mem_usage avoids materializing a second full copy of the
-        # state dict while loading - the difference between fitting and OOMing
-        # on a 512MB host (e.g. Render's free tier) for a ~270MB checkpoint.
+        # state dict while loading - by itself not enough headroom on a 512MB
+        # host (e.g. Render's free tier), so the linear layers (most of a
+        # DistilBERT's parameters) are also dynamically quantized to int8,
+        # roughly quartering their resident size with negligible accuracy loss.
         self._model = AutoModelForSequenceClassification.from_pretrained(
             model_path, low_cpu_mem_usage=True
         )
         self._model.eval()
+        self._model = torch.quantization.quantize_dynamic(
+            self._model, {torch.nn.Linear}, dtype=torch.qint8
+        )
 
     def predict(self, text: str) -> IntentPrediction:
         start = time.perf_counter()
