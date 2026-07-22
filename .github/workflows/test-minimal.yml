@@ -1,11 +1,8 @@
-name: Minimal Test 2
+name: Minimal Test 3
 
 on:
   push:
     branches: [ main ]
-
-env:
-  IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 jobs:
   test:
@@ -14,4 +11,28 @@ jobs:
       contents: read
       packages: write
     steps:
-    - run: echo "hello ${{ env.IMAGE_NAME }}"
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Poll something
+      run: |
+        for i in $(seq 1 3); do
+          echo "try $i"
+        done
+
+    - name: Python heredoc test
+      run: |
+        response='{"a":1}'
+        echo "$response"
+        echo "$response" | python3 -c "
+        import json, sys
+        body = json.load(sys.stdin)
+        assert 'a' in body
+        "
+
+    - name: Log in to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
