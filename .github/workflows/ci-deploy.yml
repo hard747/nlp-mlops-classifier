@@ -92,5 +92,14 @@ jobs:
     - name: Trigger Render deploy
       # Inert until RENDER_DEPLOY_HOOK_URL is added as a repo secret - activating
       # a live deploy later needs no workflow changes, just adding the secret.
-      if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
-      run: curl -sf -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+      # Checked at runtime (not via a workflow-level `if:`) because GitHub
+      # rejects the whole workflow file as invalid when an `if:` references a
+      # secret that has never been created in the repo.
+      env:
+        RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      run: |
+        if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+          curl -sf -X POST "$RENDER_DEPLOY_HOOK_URL"
+        else
+          echo "RENDER_DEPLOY_HOOK_URL not set, skipping"
+        fi

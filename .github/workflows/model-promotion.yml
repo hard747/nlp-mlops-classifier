@@ -14,20 +14,37 @@ jobs:
   evaluate-and-promote:
     name: Compare latest run against production, promote if not worse
     runs-on: ubuntu-latest
-    if: ${{ secrets.MLFLOW_TRACKING_URI != '' }}
+    # No job-level `if:` gate here on purpose: GitHub rejects the whole
+    # workflow file as invalid when an `if:` references a secret that has
+    # never been created in the repo. The no-op check happens at runtime instead.
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check MLFLOW_TRACKING_URI is configured
+        id: check
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: |
+          if [ -z "$MLFLOW_TRACKING_URI" ]; then
+            echo "MLFLOW_TRACKING_URI not set, skipping (see workflow header)"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Python 3.11
+        if: steps.check.outputs.configured == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install MLflow client
+        if: steps.check.outputs.configured == 'true'
         run: pip install mlflow==2.17.2
 
       - name: Evaluate and promote
+        if: steps.check.outputs.configured == 'true'
         env:
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
         run: python train/promote_model.py
