@@ -16,7 +16,12 @@ class TransformerClassifierAdapter:
 
     def __init__(self, model_path: str) -> None:
         self._tokenizer = AutoTokenizer.from_pretrained(model_path)
-        self._model = AutoModelForSequenceClassification.from_pretrained(model_path)
+        # low_cpu_mem_usage avoids materializing a second full copy of the
+        # state dict while loading - the difference between fitting and OOMing
+        # on a 512MB host (e.g. Render's free tier) for a ~270MB checkpoint.
+        self._model = AutoModelForSequenceClassification.from_pretrained(
+            model_path, low_cpu_mem_usage=True
+        )
         self._model.eval()
 
     def predict(self, text: str) -> IntentPrediction:
