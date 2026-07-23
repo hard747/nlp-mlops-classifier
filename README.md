@@ -1,3 +1,5 @@
+**🌐 English | [Español](README.es.md) | [Português](README.pt-BR.md)**
+
 # NLP MLOps Classifier
 
 An enterprise-grade, production-ready Modular Monolith designed for high-throughput customer support intent classification. This project leverages fine-tuned NLP Transformers, robust software design patterns, and a complete automated DevOps pipeline.
