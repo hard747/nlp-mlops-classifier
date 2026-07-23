@@ -59,10 +59,17 @@ class FanInBatchWriter:
         await self._flush_once()
 
     async def _run(self) -> None:
+        # _write_batch already catches its own errors; this guards
+        # _collect_batch/queue itself, so one unexpected exception can't
+        # silently kill the loop and stop audit writes for good with no
+        # error ever logged - exactly what happened before this fix.
         while not self._stopping:
-            batch = await self._collect_batch()
-            if batch:
-                await self._write_batch(batch)
+            try:
+                batch = await self._collect_batch()
+                if batch:
+                    await self._write_batch(batch)
+            except Exception:
+                logger.exception("audit batch loop hit an unexpected error, continuing")
 
     async def _collect_batch(self) -> list[AuditLogEntry]:
         batch: list[AuditLogEntry] = []

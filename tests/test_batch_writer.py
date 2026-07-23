@@ -83,6 +83,31 @@ async def test_failed_write_falls_back_to_deque_and_retries(breaker):
     assert len(writer._fallback) == 0
 
 
+async def test_background_loop_survives_unexpected_exception(breaker):
+    repo = FakeRepository()
+    writer = FanInBatchWriter(
+        repository=repo, breaker=breaker, max_batch_size=10, max_interval_ms=20, db_timeout_seconds=1.0
+    )
+
+    real_collect_batch = writer._collect_batch
+    calls = {"count": 0}
+
+    async def flaky_collect_batch():
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("unexpected queue error")
+        return await real_collect_batch()
+
+    writer._collect_batch = flaky_collect_batch
+    writer.start()
+    writer.enqueue(make_entry("a"))
+
+    await asyncio.sleep(0.1)
+    await writer.stop(grace_period_seconds=1.0)
+
+    assert any(e.request_id == "a" for batch in repo.saved_batches for e in batch)
+
+
 async def test_queue_full_drops_entry_without_raising(breaker):
     repo = FakeRepository()
     writer = FanInBatchWriter(
