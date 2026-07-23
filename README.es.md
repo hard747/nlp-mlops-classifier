@@ -4,6 +4,12 @@
 
 Un Monolito Modular de nivel empresarial, listo para producción, diseñado para clasificación de intención de solicitudes de soporte al cliente de alto rendimiento. Este proyecto usa Transformers de NLP fine-tuneados, patrones de diseño de software robustos y un pipeline de DevOps completamente automatizado.
 
+## 🎯 Qué hace
+
+El producto es un endpoint `POST /predict` que clasifica un mensaje de soporte al cliente en una de 27 intenciones. Salida real del modelo corriendo:
+
+![Ejemplos de predicciones](docs/screenshots/example-predictions.png)
+
 ## 📸 Capturas
 
 | FastAPI (Swagger) | Grafana — métricas de infra + drift |

@@ -4,6 +4,12 @@
 
 An enterprise-grade, production-ready Modular Monolith designed for high-throughput customer support intent classification. This project leverages fine-tuned NLP Transformers, robust software design patterns, and a complete automated DevOps pipeline.
 
+## 🎯 What it does
+
+The product is a `POST /predict` endpoint that classifies a customer-support message into one of 27 intents. Real output from the running model:
+
+![Example predictions](docs/screenshots/example-predictions.png)
+
 ## 📸 Screenshots
 
 | FastAPI (Swagger) | Grafana — infra + drift metrics |
