@@ -6,7 +6,18 @@ An enterprise-grade, production-ready Modular Monolith designed for high-through
 
 ## 🎯 What it does
 
-The product is a `POST /predict` endpoint that classifies a customer-support message into one of 27 intents. Real output from the running model:
+**The problem:** a company receiving thousands of customer messages a day ("I want a refund", "when does my order arrive", "I forgot my password"...) needs a human to read each one and route it to the right team. That's slow and expensive.
+
+**What this builds:** an automated classifier that reads the message and instantly returns which of 27 categories it belongs to (refund, change of address, cancel order, etc.), with a confidence score - a virtual employee for the first, repetitive step of triage.
+
+How it works end to end:
+1. **Train once, offline:** a DistilBERT model is fine-tuned on thousands of labeled example messages (GPU, a few hours) until it learns to recognize the patterns.
+2. **Serve it:** that trained model sits behind `POST /predict` - send it text, get back the detected intent + confidence, in milliseconds.
+3. **Audit every call:** each prediction is logged to a database, so what was classified can be reviewed later - important for a real business system, not just a demo.
+4. **Watch itself:** dashboards show request volume, latency, database health, and whether the model is getting less confident than usual over time (**drift** - a sign real traffic may be shifting away from what it was trained on).
+5. **Degrade gracefully:** if the database has a hiccup, predictions keep flowing to the customer - failed audit writes are buffered in memory and retried, nothing is lost, nothing goes down.
+
+Real output from the running model:
 
 ![Example predictions](docs/screenshots/example-predictions.png)
 

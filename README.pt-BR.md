@@ -6,7 +6,18 @@ Um Monolito Modular de nível empresarial, pronto para produção, projetado par
 
 ## 🎯 O que faz
 
-O produto é um endpoint `POST /predict` que classifica uma mensagem de suporte ao cliente em uma de 27 intenções. Saída real do modelo em execução:
+**O problema:** uma empresa que recebe milhares de mensagens de clientes por dia ("quero um reembolso", "quando chega meu pedido?", "esqueci minha senha"...) precisa que alguém leia cada uma e a encaminhe para a equipe certa. Fazer isso manualmente é lento e caro.
+
+**O que este projeto constrói:** um classificador automático que lê a mensagem e retorna instantaneamente a qual das 27 categorias ela pertence (reembolso, mudança de endereço, cancelar pedido, etc.), com um percentual de confiança — um funcionário virtual para a primeira etapa, repetitiva, de triagem.
+
+Como funciona de ponta a ponta:
+1. **Treinar uma vez, offline:** um modelo DistilBERT recebe fine-tuning com milhares de mensagens de exemplo já rotuladas (com GPU, algumas horas) até aprender a reconhecer os padrões.
+2. **Servi-lo:** esse modelo treinado fica atrás do `POST /predict` — você manda um texto, ele devolve a intenção detectada + confiança, em milissegundos.
+3. **Auditar cada chamada:** cada predição é registrada em um banco de dados, para poder revisar depois o que foi classificado — importante em um sistema de negócio real, não só uma demo.
+4. **Se vigiar sozinho:** os dashboards mostram volume de requisições, latência, saúde do banco de dados, e se o modelo está ficando menos confiante do que o normal ao longo do tempo (**drift** — sinal de que o tráfego real pode estar se afastando do que foi treinado).
+5. **Degradar com elegância:** se o banco de dados falhar por um momento, as predições continuam chegando ao cliente normalmente — as escritas de auditoria que falharem ficam em buffer na memória e são retentadas, sem perder nada e sem cair.
+
+Saída real do modelo em execução:
 
 ![Exemplos de predições](docs/screenshots/example-predictions.png)
 
